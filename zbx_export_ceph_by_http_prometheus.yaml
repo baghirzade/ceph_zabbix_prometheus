@@ -1,0 +1,943 @@
+# Ceph by HTTP (Prometheus) - Zabbix template
+# Monitors a Ceph cluster via its built-in mgr Prometheus exporter.
+# Requires: ceph mgr module enable prometheus  (on the active mgr node)
+# See README.md for setup instructions.
+# Ceph by HTTP (Prometheus) - Zabbix template
+# Monitors a Ceph cluster via its built-in mgr Prometheus exporter.
+# Requires: ceph mgr module enable prometheus  (on the active mgr node)
+# See README.md for setup instructions.
+zabbix_export:
+  version: '7.4'
+  template_groups:
+  - uuid: a571c0d144b14fd4a87a9d9b2aa9fcd6
+    name: Templates/Applications
+  templates:
+  - uuid: 20aa39e08ed64312b9adddd1e3c7f92e
+    template: Ceph by HTTP Prometheus
+    name: Ceph by HTTP Prometheus
+    groups:
+    - name: Templates/Applications
+    items:
+    - uuid: e49d6c09bf2c477dbf571ee4e983fd72
+      name: Ceph PG down
+      type: DEPENDENT
+      key: ceph.pg.down
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_down
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 61221e55df9d446c9c5d7f410bd0821a
+        expression: last(/Ceph by HTTP Prometheus/ceph.pg.down)>0
+        name: Ceph PGs down - I/O blocked
+        priority: DISASTER
+    - uuid: ad7f327ccd6945288b23a2a9566b6256
+      name: Ceph PG incomplete
+      type: DEPENDENT
+      key: ceph.pg.incomplete
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_incomplete
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: cd5a2ffe4e8c4e5da2afd29de0613dd1
+        expression: last(/Ceph by HTTP Prometheus/ceph.pg.incomplete)>0
+        name: Ceph PGs incomplete
+        priority: DISASTER
+    - uuid: 8e4f37f57ba04bcab1b8459fe91d8eda
+      name: Ceph PG inconsistent
+      type: DEPENDENT
+      key: ceph.pg.inconsistent
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_inconsistent
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 2c3b50fab9e84fce85d32ad7d87f7f5a
+        expression: last(/Ceph by HTTP Prometheus/ceph.pg.inconsistent)>0
+        name: Ceph PGs inconsistent - data integrity risk
+        priority: DISASTER
+    - uuid: d64222f041314e158911777d111bc1fa
+      name: Ceph PGs active
+      type: DEPENDENT
+      key: ceph.pg.active
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_active
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 96487f24690d407c8d34375e078fd59f
+      name: Ceph PGs degraded
+      type: DEPENDENT
+      key: ceph.pg.degraded
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_degraded
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: be8252d9224047268d7817d62b6462d2
+      name: Ceph PGs not clean (rebalancing/recovery in progress)
+      type: CALCULATED
+      key: ceph.pg.not_clean_pct
+      units: '%'
+      params: (last(/{HOST.HOST}/ceph.pg.total)-last(/{HOST.HOST}/ceph.pg.clean))/last(/{HOST.HOST}/ceph.pg.total)*100
+      triggers:
+      - uuid: 41b1a62e320b4aa48e9d45845948251a
+        expression: last(/Ceph by HTTP Prometheus/ceph.pg.not_clean_pct)>{$CEPH.PG.NOTCLEAN.WARN}
+        name: More than 20% of PGs are not clean
+        priority: WARNING
+    - uuid: 02563cca29a644e69f2656c423b849b2
+      name: Ceph PGs remapped
+      type: DEPENDENT
+      key: ceph.pg.remapped
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_remapped
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 131a34efcdcf4b5ba6db83a3d073fd7f
+      name: Ceph PGs total
+      type: DEPENDENT
+      key: ceph.pg.total
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_total
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 1a2463b45f534a8cb3feb3e5337eeee8
+      name: Ceph PGs undersized
+      type: DEPENDENT
+      key: ceph.pg.undersized
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_undersized
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 55e859b556cc416997d8c2b8c9d2ebbd
+      name: Ceph Prometheus metrics
+      type: HTTP_AGENT
+      key: ceph.prometheus.metrics
+      delay: 60s
+      value_type: TEXT
+      url: '{$CEPH.API.URL}'
+    - uuid: 66063e399c37485aba8545099f2bc1df
+      name: Ceph active mgr count
+      type: DEPENDENT
+      key: ceph.mgr.active_count
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_mgr_status
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 8cd421d7319542298b6d80fb921635fa
+        expression: last(/Ceph by HTTP Prometheus/ceph.mgr.active_count)=0
+        name: No active Ceph manager
+        priority: DISASTER
+    - uuid: 5d1e9f153c0b48929e8727f78e1ecf08
+      name: Ceph cluster total bytes
+      type: DEPENDENT
+      key: ceph.cluster.total_bytes
+      value_type: FLOAT
+      units: B
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_cluster_total_bytes
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 6f7c3015c62e40d287c635684cd3426c
+      name: Ceph cluster usage percent
+      type: CALCULATED
+      key: ceph.cluster.usage_pct
+      units: '%'
+      params: last(/{HOST.HOST}/ceph.cluster.used_bytes)/last(/{HOST.HOST}/ceph.cluster.total_bytes)*100
+    - uuid: 62af502984c14583a48e3da92be0fdb2
+      name: Ceph cluster used bytes
+      type: DEPENDENT
+      key: ceph.cluster.used_bytes
+      value_type: FLOAT
+      units: B
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_cluster_total_used_bytes
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 69f5902fadd24de8a810a74ba84a61a6
+      name: Ceph flag 'nobackfill' status
+      type: DEPENDENT
+      key: ceph.flag.nobackfill
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_nobackfill
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: e8115a5579944e7b9497d801d062edca
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.nobackfill)=1
+        name: Ceph OSD flag 'nobackfill' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 63838e0229f544c5a7276d80182077da
+      name: Ceph flag 'nodeep_scrub' status
+      type: DEPENDENT
+      key: ceph.flag.nodeep_scrub
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_nodeep_scrub
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: da82718f2b30419d993d139fcb9cbbc1
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.nodeep_scrub)=1
+        name: Ceph OSD flag 'nodeep_scrub' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 89b6de71984f4a37888bc214493b326e
+      name: Ceph flag 'nodown' status
+      type: DEPENDENT
+      key: ceph.flag.nodown
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_nodown
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 7c8a1263ccd4430998ee86e59ba82c5d
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.nodown)=1
+        name: Ceph OSD flag 'nodown' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 69afef147cf8450a89c008ac830a59da
+      name: Ceph flag 'noin' status
+      type: DEPENDENT
+      key: ceph.flag.noin
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_noin
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 8d31dd7a854f44a7bf4a76f7b85eac04
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.noin)=1
+        name: Ceph OSD flag 'noin' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 1df4a1d7d1ef4c2ebbef6c9897ba192d
+      name: Ceph flag 'noout' status
+      type: DEPENDENT
+      key: ceph.flag.noout
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_noout
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 0b712daed0db4d73bab267b411d9be83
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.noout)=1
+        name: Ceph OSD flag 'noout' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 6ea7b7f31a2640a98cc20e2bb68e6ba7
+      name: Ceph flag 'norebalance' status
+      type: DEPENDENT
+      key: ceph.flag.norebalance
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_norebalance
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 2b9d3c7997ef4424a96e885852e58058
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.norebalance)=1
+        name: Ceph OSD flag 'norebalance' is SET - verify this is intentional
+        priority: INFO
+    - uuid: bc9ce6de544c431589a744a44f558588
+      name: Ceph flag 'norecover' status
+      type: DEPENDENT
+      key: ceph.flag.norecover
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_norecover
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 0016e5aba9ca4e49b9258a9024cbb709
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.norecover)=1
+        name: Ceph OSD flag 'norecover' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 3abe8a163dd84fefb9790bed112f4dd5
+      name: Ceph flag 'noscrub' status
+      type: DEPENDENT
+      key: ceph.flag.noscrub
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_noscrub
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 08c88481c2b1472f8231f9657414f258
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.noscrub)=1
+        name: Ceph OSD flag 'noscrub' is SET - verify this is intentional
+        priority: INFO
+    - uuid: 6a60aae2083e42bf896fd77db2224f08
+      name: Ceph flag 'noup' status
+      type: DEPENDENT
+      key: ceph.flag.noup
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_flag_noup
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 6920743203724551b45f6706448cdd6b
+        expression: last(/Ceph by HTTP Prometheus/ceph.flag.noup)=1
+        name: Ceph OSD flag 'noup' is SET - verify this is intentional
+        priority: INFO
+    - uuid: fa6dad07a96f43648e121083184843b1
+      name: Ceph health status
+      type: DEPENDENT
+      key: ceph.health.status
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_health_status
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 849381d645954433ad3eb1bde3517821
+        expression: last(/Ceph by HTTP Prometheus/ceph.health.status)>0
+        name: Ceph cluster is not healthy (WARN/ERR)
+        priority: WARNING
+    - uuid: 1804e281d9c84ecc964297e95d4bcdee
+      name: Ceph objects degraded
+      type: DEPENDENT
+      key: ceph.objects.degraded
+      value_type: UNSIGNED
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_num_objects_degraded
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 763add8eeaee4d4e938ff087c5ef98de
+      name: Ceph objects unfound
+      type: DEPENDENT
+      key: ceph.objects.unfound
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_num_objects_unfound
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 2465af4bf1ff4ac19d2d4bfeee82813f
+        expression: last(/Ceph by HTTP Prometheus/ceph.objects.unfound)>0
+        name: Ceph has UNFOUND objects - possible data loss risk
+        priority: DISASTER
+    - uuid: 5ab8880270734b44957461f9cc5eb45d
+      name: Ceph recovery bytes rate
+      type: DEPENDENT
+      key: ceph.recovery.bytes_rate
+      value_type: FLOAT
+      units: Bps
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_recovering_bytes_per_sec
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 5d13fd1509a046ffb4084af7d582520b
+      name: Ceph slow ops count
+      type: DEPENDENT
+      key: ceph.slow_ops
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_healthcheck_slow_ops
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 6f2909e467934c1c90a518958b441298
+        expression: last(/Ceph by HTTP Prometheus/ceph.slow_ops)>{$CEPH.SLOWOPS.CRIT}
+        name: Ceph slow ops critical
+        priority: HIGH
+      - uuid: 4ce36db20f4b4ae58e486898da139e54
+        expression: last(/Ceph by HTTP Prometheus/ceph.slow_ops)>{$CEPH.SLOWOPS.WARN}
+        name: Ceph slow ops elevated
+        priority: WARNING
+    - uuid: 43d7344fbd594a0880f90c10da389a87
+      name: Health check BLUESTORE_SLOW_OP_ALERT (HEALTH_WARN)
+      type: DEPENDENT
+      key: ceph.health.detail[BLUESTORE_SLOW_OP_ALERT]
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_health_detail{name="BLUESTORE_SLOW_OP_ALERT"}
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      tags:
+      - tag: source
+        value: health-discovery
+      triggers:
+      - uuid: b8ca0b2b71ea4a42b4438f21dcd4f0fc
+        expression: last(/Ceph by HTTP Prometheus/ceph.health.detail[BLUESTORE_SLOW_OP_ALERT])>0
+        name: 'Ceph health check active: BLUESTORE_SLOW_OP_ALERT'
+        priority: WARNING
+    - uuid: 65fe3401d49a462695e2340bb501ff53
+      name: Health check PG_NOT_DEEP_SCRUBBED (HEALTH_WARN)
+      type: DEPENDENT
+      key: ceph.health.detail[PG_NOT_DEEP_SCRUBBED]
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_health_detail{name="PG_NOT_DEEP_SCRUBBED"}
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+      tags:
+      - tag: source
+        value: health-discovery
+      triggers:
+      - uuid: 9d13f0e58e4e498e88c357fe6c6632f1
+        expression: last(/Ceph by HTTP Prometheus/ceph.health.detail[PG_NOT_DEEP_SCRUBBED])>0
+        name: 'Ceph health check active: PG_NOT_DEEP_SCRUBBED'
+        priority: WARNING
+    - uuid: 1b3b2d11af834fd6af0e114b167baea8
+      name: OSDs Down count
+      type: CALCULATED
+      key: ceph.osd.count_down
+      params: last(/{HOST.HOST}/ceph.osd.count_total)-last(/{HOST.HOST}/ceph.osd.count_up)
+      triggers:
+      - uuid: 789f9c4d87794c778ce59e9b6f2a6fca
+        expression: last(/Ceph by HTTP Prometheus/ceph.osd.count_down)>0
+        name: Ceph has DOWN OSDs
+        priority: DISASTER
+    - uuid: 79bf5cfffd6c40248ab907dc17905a06
+      name: OSDs In count
+      type: DEPENDENT
+      key: ceph.osd.count_in
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_in
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: e3f3f60aeab846cb9c6e805625634495
+      name: OSDs Out count
+      type: CALCULATED
+      key: ceph.osd.count_out
+      params: last(/{HOST.HOST}/ceph.osd.count_total)-last(/{HOST.HOST}/ceph.osd.count_in)
+      triggers:
+      - uuid: 5b39308726044c64960da450f2d83891
+        expression: last(/Ceph by HTTP Prometheus/ceph.osd.count_out)>0
+        name: Ceph has OUT OSDs
+        priority: HIGH
+    - uuid: 835d974f3ccb4521b4b6e500069d2b4d
+      name: OSDs Total count
+      type: DEPENDENT
+      key: ceph.osd.count_total
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_up
+        - function
+        - count
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: cb642337ad0a476ea25dbaf843e5710d
+      name: OSDs Up count
+      type: DEPENDENT
+      key: ceph.osd.count_up
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_osd_up
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: c3d84ee012b045abadeecee0b0adae01
+      name: PGs backfill_wait
+      type: DEPENDENT
+      key: ceph.pg.backfill_wait
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_backfill_wait
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 1a28c164d4ed4a64be48513d060535dc
+      name: PGs backfilling
+      type: DEPENDENT
+      key: ceph.pg.backfilling
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_backfilling
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 6686216978a644e69ced7c04a2404364
+      name: PGs clean
+      type: DEPENDENT
+      key: ceph.pg.clean
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_clean
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 26d701e5e47f4513a9821a43ecff9b3d
+      name: PGs recovering
+      type: DEPENDENT
+      key: ceph.pg.recovering
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pg_recovering
+        - function
+        - sum
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: eabddeae1e5a4a269a94fa524cc33200
+      name: rbd-pool max avail
+      type: DEPENDENT
+      key: ceph.pool.maxavail[rbd]
+      value_type: FLOAT
+      units: B
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_max_avail{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: f20698dee0ee48e9af8e26379cba918b
+      name: rbd-pool objects
+      type: DEPENDENT
+      key: ceph.pool.objects[rbd]
+      value_type: FLOAT
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_objects{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 374be427e4e54cb3ba65ffd9a5e804bf
+      name: rbd-pool percent used
+      type: DEPENDENT
+      key: ceph.pool.used[rbd]
+      value_type: FLOAT
+      units: '%'
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_percent_used{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      - type: MULTIPLIER
+        parameters:
+        - '100'
+      master_item:
+        key: ceph.prometheus.metrics
+      triggers:
+      - uuid: 44846ae8c9144e369ed72c1e7acd3bd6
+        expression: last(/Ceph by HTTP Prometheus/ceph.pool.used[rbd])>{$CEPH.POOL.USED.WARN}
+        name: rbd-pool approaching capacity
+        priority: WARNING
+      - uuid: c3bfdb6a4ae94c7dadbccf01f3994233
+        expression: last(/Ceph by HTTP Prometheus/ceph.pool.used[rbd])>{$CEPH.POOL.USED.CRIT}
+        name: rbd-pool critically full
+        priority: HIGH
+    - uuid: 7559f9d210ac46abb48aae4d530fcd17
+      name: rbd-pool read IOPS
+      type: DEPENDENT
+      key: ceph.pool.rd_ops.rate[rbd]
+      value_type: FLOAT
+      units: ops
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_rd{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      - type: CHANGE_PER_SECOND
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: ae3f7488f8de428eb02e4902ecf3fb04
+      name: rbd-pool read bandwidth
+      type: DEPENDENT
+      key: ceph.pool.rd_bytes.rate[rbd]
+      value_type: FLOAT
+      units: Bps
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_rd_bytes{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      - type: CHANGE_PER_SECOND
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 46869465d19b4f678a6e741b78d069f2
+      name: rbd-pool stored
+      type: DEPENDENT
+      key: ceph.pool.stored[rbd]
+      value_type: FLOAT
+      units: B
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_stored{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: 051fff7dc88d403a8399c03de098cc1d
+      name: rbd-pool write IOPS
+      type: DEPENDENT
+      key: ceph.pool.wr_ops.rate[rbd]
+      value_type: FLOAT
+      units: ops
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_wr{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      - type: CHANGE_PER_SECOND
+      master_item:
+        key: ceph.prometheus.metrics
+    - uuid: a43709f0c3ac460ba746a10d982d8ee0
+      name: rbd-pool write bandwidth
+      type: DEPENDENT
+      key: ceph.pool.wr_bytes.rate[rbd]
+      value_type: FLOAT
+      units: Bps
+      preprocessing:
+      - type: PROMETHEUS_PATTERN
+        parameters:
+        - ceph_pool_wr_bytes{pool_id="{$CEPH.RBD.POOL.ID}"}
+        - value
+        - ''
+      - type: CHANGE_PER_SECOND
+      master_item:
+        key: ceph.prometheus.metrics
+    discovery_rules:
+    - uuid: c31663251ef74816a0f3b506ce3cb5e9
+      name: Ceph Monitor discovery
+      type: DEPENDENT
+      key: ceph.mon.discovery
+      master_item:
+        key: ceph.prometheus.metrics
+      lld_macro_paths:
+      - lld_macro: '{#CEPH_DAEMON}'
+        path: $.labels['ceph_daemon']
+      preprocessing:
+      - type: PROMETHEUS_TO_JSON
+        parameters:
+        - ceph_mon_quorum_status
+      item_prototypes:
+      - uuid: 4e15e50d8bf4448c817b6f50b92c0a33
+        name: Monitor {#CEPH_DAEMON} quorum status
+        type: DEPENDENT
+        key: ceph.mon.quorum[{#CEPH_DAEMON}]
+        value_type: UNSIGNED
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_mon_quorum_status{ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+        trigger_prototypes:
+        - uuid: b0e6d480e62943ac91f0ceb18a498a4f
+          expression: last(/Ceph by HTTP Prometheus/ceph.mon.quorum[{#CEPH_DAEMON}])=0
+          name: Monitor {#CEPH_DAEMON} out of quorum
+          priority: WARNING
+      - uuid: 4afd7edf4cf14580a6bac70ced4b73eb
+        name: Monitor {#CEPH_DAEMON} slow ops flag
+        type: DEPENDENT
+        key: ceph.mon.slowops[{#CEPH_DAEMON}]
+        value_type: UNSIGNED
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_daemon_health_metrics{type="SLOW_OPS",ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+    - uuid: 95a2237ec568489f9eb6194dc8ac5b79
+      name: Ceph OSD discovery
+      type: DEPENDENT
+      key: ceph.osd.discovery
+      master_item:
+        key: ceph.prometheus.metrics
+      lld_macro_paths:
+      - lld_macro: '{#CEPH_DAEMON}'
+        path: $.labels['ceph_daemon']
+      preprocessing:
+      - type: PROMETHEUS_TO_JSON
+        parameters:
+        - ceph_osd_up
+      item_prototypes:
+      - uuid: 896ed4022c1849429c188be544f8fa50
+        name: OSD {#CEPH_DAEMON} commit latency
+        type: DEPENDENT
+        key: ceph.osd.commit[{#CEPH_DAEMON}]
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_osd_commit_latency_ms{ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+        tags:
+        - tag: source
+          value: osd-discovery
+        value_type: FLOAT
+        units: ms
+        trigger_prototypes:
+        - uuid: d445b9fa4ba242dfaaad6b42843a3b00
+          expression: min(/Ceph by HTTP Prometheus/ceph.osd.commit[{#CEPH_DAEMON}],5m)>{$CEPH.OSD.LATENCY.WARN}
+          name: OSD {#CEPH_DAEMON} latency critical (sustained)
+          priority: HIGH
+      - uuid: ac751758e6da4414acddd260e2f03d70
+        name: OSD {#CEPH_DAEMON} apply latency
+        type: DEPENDENT
+        key: ceph.osd.apply[{#CEPH_DAEMON}]
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_osd_apply_latency_ms{ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+        tags:
+        - tag: source
+          value: osd-discovery
+        value_type: FLOAT
+        units: ms
+      - uuid: b6de3fb712a543a5a2155ef04ed73ca8
+        name: OSD {#CEPH_DAEMON} in status
+        type: DEPENDENT
+        key: ceph.osd.in[{#CEPH_DAEMON}]
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_osd_in{ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+        tags:
+        - tag: source
+          value: osd-discovery
+        value_type: UNSIGNED
+        trigger_prototypes:
+        - uuid: 38ddd7a636904b22a2ece87b07346da6
+          expression: last(/Ceph by HTTP Prometheus/ceph.osd.in[{#CEPH_DAEMON}])=0
+          name: OSD {#CEPH_DAEMON} is OUT of cluster
+          priority: HIGH
+      - uuid: c6cf800ccfe44ab8bb2b6d77a8050c9d
+        name: OSD {#CEPH_DAEMON} up status
+        type: DEPENDENT
+        key: ceph.osd.up[{#CEPH_DAEMON}]
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_osd_up{ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+        tags:
+        - tag: source
+          value: osd-discovery
+        value_type: UNSIGNED
+        trigger_prototypes:
+        - uuid: cff93e425e30484eaf1509d9686fbf50
+          expression: last(/Ceph by HTTP Prometheus/ceph.osd.up[{#CEPH_DAEMON}])=0
+          name: OSD {#CEPH_DAEMON} is DOWN
+          priority: DISASTER
+      - uuid: 154d281ff5994b84929af31667c11bbe
+        name: OSD {#CEPH_DAEMON} slow ops flag
+        type: DEPENDENT
+        key: ceph.osd.slowops[{#CEPH_DAEMON}]
+        value_type: UNSIGNED
+        master_item:
+          key: ceph.prometheus.metrics
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_daemon_health_metrics{type="SLOW_OPS",ceph_daemon="{#CEPH_DAEMON}"}
+          - value
+          - ''
+        tags:
+        - tag: source
+          value: osd-discovery
+        trigger_prototypes:
+        - uuid: 2c86a2249c0b4cb69255ee90b52d2869
+          expression: last(/Ceph by HTTP Prometheus/ceph.osd.slowops[{#CEPH_DAEMON}])>0
+          name: OSD {#CEPH_DAEMON} flagged for slow operations
+          priority: WARNING
+    - uuid: c22c840089cc44c786d9267438028401
+      name: Ceph health check discovery
+      type: DEPENDENT
+      key: ceph.health.detail.discovery
+      item_prototypes:
+      - uuid: 0a3f86cda95640f09462742a4cf9fce9
+        name: Health check {#CHECK_NAME} ({#CHECK_SEVERITY})
+        type: DEPENDENT
+        key: ceph.health.detail[{#CHECK_NAME}]
+        preprocessing:
+        - type: PROMETHEUS_PATTERN
+          parameters:
+          - ceph_health_detail{name="{#CHECK_NAME}"}
+          - value
+          - ''
+        master_item:
+          key: ceph.prometheus.metrics
+        tags:
+        - tag: source
+          value: health-discovery
+      master_item:
+        key: ceph.prometheus.metrics
+      lld_macro_paths:
+      - lld_macro: '{#CHECK_NAME}'
+        path: $.labels['name']
+      - lld_macro: '{#CHECK_SEVERITY}'
+        path: $.labels['severity']
+      preprocessing:
+      - type: PROMETHEUS_TO_JSON
+        parameters:
+        - ceph_health_detail
+    macros:
+    - macro: '{$CEPH.API.URL}'
+      value: http://localhost:9283/metrics
+      description: URL of the Ceph mgr Prometheus exporter (ceph mgr module enable prometheus). Override per-host with the active mgr IP.
+    - macro: '{$CEPH.RBD.POOL.ID}'
+      value: '6'
+      description: 'Numeric pool_id of the main RBD pool to monitor (see: ceph osd pool ls detail). Override per cluster.'
+    - macro: '{$CEPH.OSD.LATENCY.WARN}'
+      value: '500'
+      description: OSD commit latency threshold in ms for the sustained high latency trigger.
+    - macro: '{$CEPH.POOL.USED.WARN}'
+      value: '80'
+      description: rbd pool percent-used warning threshold.
+    - macro: '{$CEPH.POOL.USED.CRIT}'
+      value: '90'
+      description: rbd pool percent-used critical threshold.
+    - macro: '{$CEPH.SLOWOPS.WARN}'
+      value: '10'
+      description: Cluster-wide slow ops count warning threshold.
+    - macro: '{$CEPH.SLOWOPS.CRIT}'
+      value: '50'
+      description: Cluster-wide slow ops count critical threshold.
+    - macro: '{$CEPH.PG.NOTCLEAN.WARN}'
+      value: '20'
+      description: Percent of PGs not in clean state, warning threshold.
+  triggers:
+  - uuid: b7db50e220b2453cb4108eb624e03068
+    expression: last(/Ceph by HTTP Prometheus/ceph.pg.total)-last(/Ceph by HTTP Prometheus/ceph.pg.active)>0
+    name: Ceph has inactive PGs (I/O blocked)
+    priority: HIGH
+  - uuid: 40ebbcb868974a9c8b6af2dadcac206b
+    expression: last(/Ceph by HTTP Prometheus/ceph.pg.degraded)>0 or last(/Ceph by HTTP Prometheus/ceph.pg.undersized)>0
+    name: Ceph PGs degraded or undersized
+    priority: WARNING
